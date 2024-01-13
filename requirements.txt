@@ -3,3 +3,4 @@ urllib3
 asyncio
 feedparser
 PyPDF2
+python-telegram-bot
