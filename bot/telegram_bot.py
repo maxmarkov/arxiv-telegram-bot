@@ -59,8 +59,8 @@ def post_message_to_channel(token, channel_id, message):
 
   except requests.RequestException as e:
     raise ValueError("error"+ str(e))
-
-def post_message_to_channel2(message: str):
-  """ Post message to Telegram using request library """
-  url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={CHANNEL_ID}&text={message}"
-  print(requests.get(url).json())
+  
+async def send_message_to_channel(token: str, channel_id: str, message:str):
+  """ Async function to send a message to the specified Telegram channel """
+  bot = Bot(token=token)
+  await bot.send_message(chat_id=channel_id, text=message, parse_mode='Markdown')
