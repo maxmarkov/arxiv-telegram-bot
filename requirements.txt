@@ -4,3 +4,4 @@ asyncio
 feedparser
 PyPDF2
 python-telegram-bot
+openai
