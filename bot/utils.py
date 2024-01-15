@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timedelta
 
 def write_dict_to_json(data: dict, filename: str = "./test.json") -> None:
     """ Writes a given dictionary to a JSON file.
@@ -20,3 +21,16 @@ def read_json_to_dict(filename: str = "./test.json") -> dict:
     """
     with open(filename, 'r') as file:
         return json.load(file)
+    
+def is_yesterday(date_string: str) -> bool:
+    """ Checks if the given date is yesterday
+    Args:
+        date_string (str): The date string to be checked.
+    Returns:
+        bool: True if the date is yesterday, False otherwise. """
+    input_date = datetime.strptime(date_string, "%Y-%m-%dT%H:%M:%SZ")
+    
+    current_date = datetime.utcnow()
+    yesterday = current_date - timedelta(days=1)
+
+    return input_date.date() == yesterday.date()

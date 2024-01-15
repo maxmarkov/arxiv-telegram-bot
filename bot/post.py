@@ -6,7 +6,7 @@ def format_post_for_telegram(article_info):
     datetime_obj = datetime.fromisoformat(article_info['published'].rstrip("Z"))
     published = datetime_obj.strftime("%d-%m-%Y")
 
-    title = article_info.get('title', 'No Title').replace('\n', ' ')
+    title = article_info.get('title', 'No Title').replace('\n', '')
     authors = ', '.join([author['name'] for author in article_info.get('authors', [])])
     abstract = article_info.get('summary', 'No Summary').replace('\n', ' ')
     ai_summary = article_info.get('ai summary', 'No AI Summary').replace('\n', ' ')
