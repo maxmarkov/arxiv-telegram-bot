@@ -17,7 +17,7 @@ def get_current_date_formatted() -> str:
   formatted_date = current_date.strftime("%y%m")
   return formatted_date
 
-def fetch_arxiv_updates(cat: str = 'q-fin.PM') -> bytes:
+def fetch_arxiv_updates(cat: str = 'q-fin.PM', date="") -> bytes:
   """ Fetches the list of articles in a specified category from the arXiv API using the urllib.request module.
 
   This function constructs a URL for the arXiv API request based on the given category and the current date, 
@@ -36,7 +36,10 @@ def fetch_arxiv_updates(cat: str = 'q-fin.PM') -> bytes:
     >>> response = fetch_arxiv_updates('cs.LG')
     >>> print_response(response)
   """
-  formatted_current_date = get_current_date_formatted()
+  if date == "":
+    formatted_current_date = get_current_date_formatted()
+  else:
+    formatted_current_date = date
 
   URL = f'http://export.arxiv.org//list/{cat}/{formatted_current_date}'
   print(URL)

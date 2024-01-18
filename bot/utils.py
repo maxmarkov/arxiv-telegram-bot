@@ -21,7 +21,19 @@ def read_json_to_dict(filename: str = "./test.json") -> dict:
     """
     with open(filename, 'r') as file:
         return json.load(file)
-    
+
+def split_list_into_groups(input_list, group_size=10):
+    """ Split a list into groups of specified size. Required since one can pass maximum 10 items per request to the arXiv API.
+
+    Args:
+        input_list (list): The input list to be split.
+        group_size (int): The maximum number of items in each group (default is 10).
+
+    Returns:
+        List of lists: A list of lists, where each inner list contains up to 'group_size' items.
+    """
+    return [input_list[i:i + group_size] for i in range(0, len(input_list), group_size)]
+
 def is_yesterday(date_string: str) -> bool:
     """ Checks if the given date is yesterday
     Args:
@@ -34,3 +46,11 @@ def is_yesterday(date_string: str) -> bool:
     yesterday = current_date - timedelta(days=1)
 
     return input_date.date() == yesterday.date()
+
+def remove_after_keywords(text):
+    keyword = "Keywords:"
+    index = text.find(keyword)
+    if index != -1:
+        return text[:index]
+    else:
+        return text 

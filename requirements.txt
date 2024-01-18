@@ -5,3 +5,4 @@ feedparser
 PyPDF2
 python-telegram-bot
 openai
+psycopg2-binary
