@@ -8,11 +8,30 @@ This Python project fetches the latest articles published on the arXiv platform 
 - Format the information for posting on Telegram.
 - Post updates to a specified Telegram channel.
 
-## Installation
+## Local installation
 Before running the script, ensure you have Python installed on your system. Then, install the required dependencies:
 ```
 pip install -r requirements.txt
 ```
+and then run the code
+```
+python main.py
+```
+
+## Dockerfile
+Build the image
+```
+docker build -t your-app-name .
+```
+Specify and pass the environment variables in a secure way:
+```
+``` 
+
+Run the container
+```
+docker run -d --name your-container-name -v /path/on/your/host:/usr/src/app/logs --env-file .env your-app-name
+```
+where `/path/on/your/host` is the path on you local disk that you want to attach (log file will be written there).  
 
 ## Configuration
 Set up the following environment variables:
