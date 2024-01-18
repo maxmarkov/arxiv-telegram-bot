@@ -3,7 +3,7 @@ import time
 import asyncio
 
 from bot.arxiv_api import fetch_arxiv_updates, parse_arxiv_response_re, query_arxiv, query_arxiv_list
-from bot.utils import write_dict_to_json, read_json_to_dict, is_yesterday, remove_after_keywords, split_list_into_groups
+from bot.utils import write_dict_to_json, read_json_to_dict, is_yesterday, remove_after_keywords, split_list_into_groups, remove_none_from_list
 from bot.post import format_post_for_telegram
 from bot.telegram_bot import send_message_to_channel
 from bot.openai import summarize_abstract
@@ -21,7 +21,11 @@ def main():
     ## --- end of testing --- ##
 
     id_list = list(entries.keys())
-    print(f"{len(id_list)} articles found: {id_list}")
+    id_list = remove_none_from_list(id_list)
+    if len(id_list) == 0:
+        raise Exception("No articles found in the id list.")
+    else:
+        print(f"{len(id_list)} articles found: {id_list}")
 
     # get secret environment variables
     channel_id = os.getenv('CHANNEL_ID')

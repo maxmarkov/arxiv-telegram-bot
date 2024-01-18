@@ -54,3 +54,13 @@ def remove_after_keywords(text):
         return text[:index]
     else:
         return text 
+    
+def remove_none_from_list(id_list):
+    """ Remove None values from the input list.
+
+    Args:
+        id_list (list): List of IDs to be processed.
+    Returns:
+        list: List with None values removed.
+    """
+    return [item for item in id_list if item is not None]
