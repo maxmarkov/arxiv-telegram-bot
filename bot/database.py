@@ -1,3 +1,4 @@
+import logging
 import psycopg2
 from psycopg2 import sql
 
@@ -20,10 +21,10 @@ def connect_to_postgres(database:str="postgres", user:str="postgres", password:s
             password=password
         )
         cursor = conn.cursor()
-        print("Connected to the database successfully")
+        logging.info("Connected to the database successfully")
         return conn, cursor
     except Exception as e:
-        print(f"An error occurred: {e}")
+        logging.error(f"An error occurred: {e}")
         return None, None
 
 def check_id_and_insert(cursor, conn, table_name, data):
@@ -41,7 +42,7 @@ def check_id_and_insert(cursor, conn, table_name, data):
         result = cursor.fetchone()
 
         if result:
-            print(f"Entry with ID {data['id']} already exists.")
+            logging.info(f"Entry with ID {data['id']} already exists.")
         else:
             columns = data.keys()
             values = [data[column] for column in columns]
@@ -52,10 +53,10 @@ def check_id_and_insert(cursor, conn, table_name, data):
             )
             cursor.execute(insert_query, values)
             conn.commit()
-            print(f"Inserted new entry with ID {data['id']}.")
+            logging.info(f"Inserted new entry with ID {data['id']}.")
             
     except Exception as e:
-        print(f"An error occurred: {e}")
+        logging.error(f"An error occurred: {e}")
         conn.rollback()
 
 def get_ids_not_in_database(input_ids, cursor, table_name):
@@ -76,6 +77,6 @@ def get_ids_not_in_database(input_ids, cursor, table_name):
         ids_not_in_database = [id for id in input_ids if id not in existing_ids]
 
     except psycopg2.Error as e:
-        print(f"Error: {e}")
+        logging.error(f"Error: {e}")
 
     return ids_not_in_database

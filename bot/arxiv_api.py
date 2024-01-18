@@ -1,5 +1,6 @@
 import re
 import html
+import logging
 import urllib
 import urllib.request
 import feedparser
@@ -42,7 +43,7 @@ def fetch_arxiv_updates(cat: str = 'q-fin.PM', date="") -> bytes:
     formatted_current_date = date
 
   URL = f'http://export.arxiv.org//list/{cat}/{formatted_current_date}'
-  print(URL)
+  logging.info(URL)
   response = urllib.request.urlopen(URL).read()
   return response
 
@@ -122,7 +123,7 @@ def query_arxiv(id: str) -> bytes:
           This is returned as a byte string.
   """
   query = f"http://export.arxiv.org/api/query?id_list={id}"
-  print(f'Query: {query}')
+  logging.info(f'Query: {query}')
 
   r = urllib.request.urlopen(query)
 
@@ -135,7 +136,7 @@ def query_arxiv_list(id_list: list) -> bytes:
   """ Query arxiv API to get metadata of multiple articles from the list of IDs """
   joined_ids = ','.join(id_list)
   query = f"http://export.arxiv.org/api/query?id_list={joined_ids}"
-  print(f'Query: {query}')
+  logging.info(f'Query: {query}')
 
   r = urllib.request.urlopen(query)
 

@@ -1,6 +1,7 @@
 import asyncio
 import requests
 import telegram
+import logging 
 
 from telegram import Bot
 from urllib.parse import quote
@@ -24,10 +25,12 @@ def get_messages_from_channel(token, limit=10) -> dict:
     data = response.json()
 
     if not data.get('result'):
+      logging.error("No messages found in the channel.")
       raise ValueError("error: No messages found in the channel.")
     return data
 
   except requests.RequestException as e:
+      logging.error("error: " + str(e))
       raise ValueError("error: " + str(e))
 
 def post_message_to_channel(token, channel_id, message):
@@ -58,6 +61,7 @@ def post_message_to_channel(token, channel_id, message):
     return response.json()
 
   except requests.RequestException as e:
+    logging.error("error: " + str(e))
     raise ValueError("error"+ str(e))
   
 async def send_message_to_channel(token: str, channel_id: str, message:str):
