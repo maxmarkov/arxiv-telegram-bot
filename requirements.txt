@@ -1,8 +1,8 @@
-requests
-urllib3
-asyncio
-feedparser
-PyPDF2
-python-telegram-bot
-openai
-psycopg2-binary
+requests==2.31.0
+urllib3==2.1.0
+asyncio==3.4.3
+feedparser==6.0.11
+PyPDF2==3.0.1
+python-telegram-bot==20.7.0
+openai==0.28.0
+psycopg2-binary==2.9.9
