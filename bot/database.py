@@ -1,6 +1,7 @@
 import logging
 import psycopg2
 from psycopg2 import sql
+from typing import Optional, List, Tuple
 
 def connect_to_postgres(database:str="postgres", user:str="postgres", password:str="", host:str= 'localhost', port:int=5432):
     """ Connects to a PostgreSQL database and returns the connection object.
@@ -59,13 +60,12 @@ def check_id_and_insert(cursor, conn, table_name, data):
         logging.error(f"An error occurred: {e}")
         conn.rollback()
 
-def get_ids_not_in_database(input_ids, cursor, table_name):
+def get_ids_not_in_database(input_ids: List[str], cursor: psycopg2.extensions.cursor, table_name: str) -> List[str]:
     """ Retrieve IDs from the input list that are not present in the PostgreSQL database using a provided cursor.
 
     Args:
         input_ids (list): List of IDs to check.
         cursor (psycopg2.extensions.cursor): Database cursor to use for querying.
-
     Returns:
         list: List of IDs that are not in the database.
     """
@@ -80,3 +80,24 @@ def get_ids_not_in_database(input_ids, cursor, table_name):
         logging.error(f"Error: {e}")
 
     return ids_not_in_database
+
+def retrieve_first_n_rows(n: int, cursor: psycopg2.extensions.cursor, table_name: str) -> Optional[List[Tuple]]:
+    """ Retrieve the first n rows from a PostgreSQL table using the provided cursor.
+
+    Args:
+        n (int): The number of rows to retrieve.
+        cursor (psycopg2.extensions.cursor): The cursor object for the database connection.
+        table_name (str): The name of the PostgreSQL table to retrieve rows from.
+
+    Returns:
+        Optional[List[Tuple]]: A list of tuples containing the retrieved rows, or None if an error occurs.
+    """
+    try:   
+        query = f"SELECT id, title, summary FROM {table_name} LIMIT {n};"
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        return rows
+        
+    except psycopg2.Error as e:
+        logging.error(f"Error: {e}")
+        return None

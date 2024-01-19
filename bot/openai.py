@@ -28,3 +28,30 @@ def summarize_abstract(abstract, api_key, model="gpt-3.5-turbo"):
     except Exception as e:
         logging.error(f"An error occurred: {e}")
         return None
+    
+def convert_text_to_embedding(text: str, api_key: str, model:str="text-embedding-ada-002"):
+    """
+    Convert text into embeddings using the OpenAI GPT-3 API.
+
+    Args:
+        text (str): The text to convert into embeddings.
+        api_key (str): Your OpenAI API key.
+        model (str): The GPT-3 model to use
+    Returns:
+        str: The generated text-based embedding.
+    Example:
+        >> embedding = convert_text_to_embedding(api_key, input_text)
+    """
+    try:
+        openai.api_key = api_key
+        response = openai.Embedding.create(
+            input=text,
+            model=model
+        )
+
+        embedding = response['data'][0]['embedding']
+
+        return embedding
+
+    except Exception as e:
+        return str(e)
