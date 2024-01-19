@@ -1,4 +1,5 @@
 import openai
+from openai import OpenAI
 import logging
 
 def summarize_abstract(abstract, api_key, model="gpt-3.5-turbo"):
@@ -13,18 +14,14 @@ def summarize_abstract(abstract, api_key, model="gpt-3.5-turbo"):
     Returns:
         str: A shorter, concise version of the abstract.
     """
-
-    openai.api_key = api_key
-
     try:
-        response = openai.ChatCompletion.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": f"Please summarize the following abstract in a short and concise way: {abstract}"}
-            ]
-        )
-        return response['choices'][0]['message']['content']
+        client = OpenAI(api_key=api_key)
+
+        response = client.chat.completions.create(model=model,
+                        messages = [{"role": "system", "content": "You are a helpful assistant."},
+                                    {"role": "user", "content": f"Please summarize the following abstract in a short and concise way: {abstract}"},
+                                ])
+        return response.choices[0].message.content
     except Exception as e:
         logging.error(f"An error occurred: {e}")
         return None
@@ -43,13 +40,14 @@ def convert_text_to_embedding(text: str, api_key: str, model:str="text-embedding
         >> embedding = convert_text_to_embedding(api_key, input_text)
     """
     try:
-        openai.api_key = api_key
-        response = openai.Embedding.create(
+        client = OpenAI(api_key=api_key)
+
+        response = client.embeddings.create(
             input=text,
             model=model
         )
 
-        embedding = response['data'][0]['embedding']
+        embedding = response.data[0].embedding
 
         return embedding
 

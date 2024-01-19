@@ -7,8 +7,8 @@ from bot.arxiv_api import fetch_arxiv_updates, parse_arxiv_response_re, query_ar
 from bot.utils import write_dict_to_json, read_json_to_dict, is_yesterday, remove_after_keywords, split_list_into_groups, remove_none_from_list
 from bot.post import format_post_for_telegram
 from bot.telegram_bot import send_message_to_channel
-from bot.openai import summarize_abstract
-from bot.database import connect_to_postgres, check_id_and_insert, get_ids_not_in_database
+from bot.openai import summarize_abstract, convert_text_to_embedding
+from bot.database import connect_to_postgres, check_id_and_insert, get_ids_not_in_database, retrieve_first_n_rows
 
 logging.basicConfig(
     level=logging.INFO,
@@ -56,12 +56,18 @@ def main():
 
         if conn is None or cursor is None:
             raise Exception("Could not connect to the database.")
+        
+        # ## === embedding === ##
+        # records = retrieve_first_n_rows(n=2, cursor=cursor, table_name=db_table)
+        # summary = records[0][2].replace("\n", " ")
+        # embedding = convert_text_to_embedding(summary, api_key)
+        # ## === end of embedding === ##
 
         ids_not_in_database = get_ids_not_in_database(id_list, cursor, db_table)
 
         if len(ids_not_in_database) > 0:
 
-            logging.info(f"{len(ids_not_in_database)} articles to tbe submitted: {ids_not_in_database}")
+            logging.info(f"{len(ids_not_in_database)} articles to be submitted: {ids_not_in_database}")
 
             for i, item in enumerate(metadata):
 
@@ -77,6 +83,7 @@ def main():
                             "summary": remove_after_keywords(item['summary'].replace('\n', ' ').replace('  ', ' ')),
                             "arxiv_comment": "",
                             "arxiv_primary_category": item['arxiv_primary_category']['term'],}
+                    
                     logging.info(data)
                     logging.info(f"Inserting {id_list[i]} into the database...")
                     check_id_and_insert(cursor, conn, db_table, data)
