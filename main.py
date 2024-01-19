@@ -2,6 +2,7 @@ import os
 import time
 import asyncio
 import logging 
+from dotenv import load_dotenv
 
 from bot.arxiv_api import fetch_arxiv_updates, parse_arxiv_response_re, query_arxiv, query_arxiv_list
 from bot.utils import write_dict_to_json, read_json_to_dict, is_yesterday, remove_after_keywords, split_list_into_groups, remove_none_from_list
@@ -10,12 +11,16 @@ from bot.telegram_bot import send_message_to_channel
 from bot.openai import summarize_abstract, convert_text_to_embedding
 from bot.database import connect_to_postgres, check_id_and_insert, get_ids_not_in_database, retrieve_first_n_rows
 
+# logging configuration
 logging.basicConfig(
     level=logging.INFO,
     filename='bot.log',
     format='%(asctime)s [%(levelname)s] - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
+
+# load environment variables from .env
+load_dotenv()
 
 def main():
     try:
