@@ -18,32 +18,45 @@ and then run the code
 python main.py
 ```
 
-## Dockerfile
-Build the image
-```
-docker build -t your-app-name .
-```
-Specify and pass the environment variables in a secure way:
-```
-``` 
-
-Run the container
-```
-docker run -d --name your-container-name -v /path/on/your/host:/usr/src/app/logs --env-file .env your-app-name
-```
-where `/path/on/your/host` is the path on you local disk that you want to attach (log file will be written there).  
-
 ## Configuration
+
 Set up the following environment variables:
 
 - `CHANNEL_ID`: The ID of the Telegram channel where updates will be posted.
 - `BOT_TOKEN`: The token of your Telegram bot.
-These can be set in your environment, or using a .env file which you can create at the root of your project:
+- `OPENAI_TOKEN`: the OpenAI token
+
+These can be set in your environment `.env` file which you can create at the root of your project:
 
 ```
-CHANNEL_ID=your_channel_id
-BOT_TOKEN=your_bot_token
+CHANNEL_ID=your_telegram_channel_id
+BOT_TOKEN=your_telegram_bot_token
+OPENAI_TOKEN=your_openai_token
+POSTGRES_NAME=your_postgres_dbname
+POSTGRES_PORT=your_postgres_port
+POSTGRES_USERNAME=your_postgres_username
+POSTGRES_PASSWORD=your_postgres_password
+POSTGRES_TABLE=your_postgres_tqble
+``` 
+
+Make sure the port that you selected is not busy. The command 
 ```
+sudo lsof -i :5432
+```
+must return nothing.
+
+## Dockerfile
+
+Build the image
+```
+docker build -t telearxiv .
+```
+
+Run the container
+```
+docker run -d --name telearxiv-container -v /path/on/your/host:/usr/src/app/logs --env-file .env telearxiv
+```
+where `/path/on/your/host` is the path on you local disk that you want to attach (log file will be written there).  
 
 ## Usage
 Run the script with:
