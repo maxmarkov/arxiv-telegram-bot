@@ -54,7 +54,7 @@ docker build -t telearxiv .
 
 Run the container
 ```
-docker run -d --name telearxiv-container -v /path/on/your/host:/usr/src/app/logs --env-file .env telearxiv
+docker run -d --name telearxiv-container -p 5000:5000 -v /path/on/your/host:/usr/src/app/logs --env-file .env telearxiv
 ```
 where `/path/on/your/host` is the path on you local disk that you want to attach (log file will be written there).  
 

@@ -11,19 +11,23 @@ from bot.telegram_bot import send_message_to_channel
 from bot.openai import summarize_abstract, convert_text_to_embedding
 from bot.database import connect_to_postgres, check_id_and_insert, get_ids_not_in_database, retrieve_first_n_rows
 
+LOG_PATH = './logs'
+os.makedirs(LOG_PATH, exist_ok=True)
+
 # logging configuration
 logging.basicConfig(
     level=logging.INFO,
-    filename='bot.log',
+    filename=f'{LOG_PATH}/bot.log',
     format='%(asctime)s [%(levelname)s] - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-# load environment variables from .env
+# load from .env file if present
 load_dotenv()
 
 def main():
     try:
+
         logging.info("Fetching recent arXiv updates...")
         response_list = fetch_arxiv_updates()
         logging.info("Parsing the response...")
@@ -57,7 +61,7 @@ def main():
         logging.info(f"{len(metadata)} articles found.")
         time.sleep(5)
 
-        conn, cursor = connect_to_postgres(password=db_password, database=db_name)
+        conn, cursor = connect_to_postgres(password=db_password, database=db_name, port=db_port, host='host.docker.internal')
 
         if conn is None or cursor is None:
             raise Exception("Could not connect to the database.")

@@ -26,6 +26,7 @@ def connect_to_postgres(database:str="postgres", user:str="postgres", password:s
         return conn, cursor
     except Exception as e:
         logging.error(f"An error occurred: {e}")
+        print(f"An error occurred: {e}")
         return None, None
 
 def check_id_and_insert(cursor, conn, table_name, data):
