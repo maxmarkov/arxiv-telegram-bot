@@ -89,12 +89,38 @@ def retrieve_first_n_rows(n: int, cursor: psycopg2.extensions.cursor, table_name
         n (int): The number of rows to retrieve.
         cursor (psycopg2.extensions.cursor): The cursor object for the database connection.
         table_name (str): The name of the PostgreSQL table to retrieve rows from.
-
     Returns:
         Optional[List[Tuple]]: A list of tuples containing the retrieved rows, or None if an error occurs.
+
+    Example:
+        >>> conn, cursor = connect_to_postgres()
+        >>> data = retrieve_first_n_rows(n=5, cursor=cursor, table_name="arxiv")
     """
     try:   
         query = f"SELECT id, title, summary FROM {table_name} LIMIT {n};"
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        return rows
+        
+    except psycopg2.Error as e:
+        logging.error(f"Error: {e}")
+        return None
+    
+def retrieve_all_rows(cursor: psycopg2.extensions.cursor, table_name: str) -> Optional[List[Tuple]]:
+    """ Retrieve all rows from a PostgreSQL table using the provided cursor.
+
+    Args:
+        cursor (psycopg2.extensions.cursor): The cursor object for the database connection.
+        table_name (str): The name of the PostgreSQL table to retrieve rows from.
+    Returns:
+        Optional[List[Tuple]]: A list of tuples containing the retrieved rows, or None if an error occurs.
+
+    Example:
+        >>> conn, cursor = connect_to_postgres()
+        >>> data = retrieve_all_rows(cursor=cursor, table_name="arxiv")
+    """
+    try:   
+        query = f"SELECT id, title, summary FROM {table_name};"
         cursor.execute(query)
         rows = cursor.fetchall()
         return rows
