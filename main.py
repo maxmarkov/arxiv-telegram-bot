@@ -2,7 +2,10 @@ import os
 import time
 import asyncio
 import logging 
+import argparse
+
 from dotenv import load_dotenv
+from apscheduler.schedulers.background import BlockingScheduler, BackgroundScheduler
 
 from bot.arxiv_api import fetch_arxiv_updates, parse_arxiv_response_re, query_arxiv, query_arxiv_list
 from bot.utils import write_dict_to_json, read_json_to_dict, is_yesterday, remove_after_keywords, split_list_into_groups, remove_none_from_list
@@ -61,7 +64,7 @@ def main():
         logging.info(f"{len(metadata)} articles found.")
         time.sleep(5)
 
-        conn, cursor = connect_to_postgres(password=db_password, database=db_name, port=db_port, host='host.docker.internal')
+        conn, cursor = connect_to_postgres(password=db_password, database=db_name, port=db_port)#, host='host.docker.internal')
 
         if conn is None or cursor is None:
             raise Exception("Could not connect to the database.")
@@ -116,4 +119,21 @@ def main():
         conn.close()
 
 if __name__ == "__main__":
-    main()
+
+    parser = argparse.ArgumentParser(description='Process some arguments.')
+
+    parser.add_argument('--scheduler', choices=['block', 'background', None], default=None,
+                        help='Type of scheduler to use (block, background, or None)')
+    args = parser.parse_args()
+
+    if args.scheduler == None:
+        main()
+    elif args.scheduler == 'block':
+        scheduler = BlockingScheduler()
+        job_id = scheduler.add_job(main, 'interval', hours=1)
+        scheduler.start()
+    elif args.scheduler == 'background':
+        scheduler = BackgroundScheduler()
+        job_id = scheduler.add_job(main, 'interval', seconds=5)
+        scheduler.start()
+        time.sleep(60)
