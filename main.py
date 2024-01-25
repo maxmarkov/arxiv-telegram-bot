@@ -28,6 +28,26 @@ logging.basicConfig(
 # load from .env file if present
 load_dotenv()
 
+def run_scheduler(scheduler_type: str) -> None:
+    """ Run the main function from a scheduler (either blocking or background).
+    Args:
+        scheduler_type (str): The type of scheduler to run. Can be 'block' or 'background'.
+    Returns:
+        None
+    """
+    if scheduler_type == 'block':
+        scheduler = BlockingScheduler()
+        job_id = scheduler.add_job(main, 'interval', seconds=30)
+        scheduler.start()
+    elif scheduler_type == 'background':
+        scheduler = BackgroundScheduler()
+        job_id = scheduler.add_job(main, 'interval', seconds=5)
+        scheduler.start()
+        time.sleep(60)
+    else:
+        logging.error("Invalid scheduler type. Must be 'block' or 'background'.")
+        raise Exception("Invalid scheduler type. Must be 'block' or 'background'.")
+
 def main():
     try:
 
@@ -108,32 +128,26 @@ def main():
 
                     asyncio.run(send_message_to_channel(bot_token, channel_id, message))
                     time.sleep(5)
+        
         else:
             logging.info(f"No new articles have been found.\n")
+
+        cursor.close()
+        conn.close()
 
     except Exception as e:
         logging.error(f"An error occurred: {str(e)}")
 
-    finally:
-        cursor.close()
-        conn.close()
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Process some arguments.')
-
+    
     parser.add_argument('--scheduler', choices=['block', 'background', None], default=None,
                         help='Type of scheduler to use (block, background, or None)')
     args = parser.parse_args()
 
-    if args.scheduler == None:
+    if args.scheduler is None:
         main()
-    elif args.scheduler == 'block':
-        scheduler = BlockingScheduler()
-        job_id = scheduler.add_job(main, 'interval', hours=1)
-        scheduler.start()
-    elif args.scheduler == 'background':
-        scheduler = BackgroundScheduler()
-        job_id = scheduler.add_job(main, 'interval', seconds=5)
-        scheduler.start()
-        time.sleep(60)
+    else:
+        run_scheduler(args.scheduler)
