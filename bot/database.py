@@ -3,128 +3,141 @@ import psycopg2
 from psycopg2 import sql
 from typing import Optional, List, Tuple
 
-def connect_to_postgres(database:str="postgres", user:str="postgres", password:str="", host:str= 'localhost', port:int=5432):
-    """ Connects to a PostgreSQL database and returns the connection object.
+import psycopg2
+from psycopg2 import sql
+import logging
 
-    :param host: Hostname or IP address of the PostgreSQL server
-    :param port: Port number on which PostgreSQL is running
-    :param database: Name of the database to connect to
-    :param user: Username for authentication
-    :param password: Password for authentication
-    :return: Connection object if successful, None otherwise
-    """
-    try:
-        conn = psycopg2.connect(
-            host=host,
-            port=port,
-            database=database,
-            user=user,
-            password=password
-        )
-        cursor = conn.cursor()
-        logging.info("Connected to the database successfully")
-        return conn, cursor
-    except Exception as e:
-        logging.error(f"An error occurred: {e}")
-        print(f"An error occurred: {e}")
-        return None, None
-
-def check_id_and_insert(cursor, conn, table_name, data):
-    """ Checks if an ID exists in the table, and if not, inserts a new row.
-    
-    :param cursor: The database cursor.
-    :param conn: The database connection object.
-    :param table_name: Name of the table to interact with.
-    :param data: Dictionary containing the data to insert.
-    """
-    try:
-        # Check if the ID exists
-        cursor.execute(sql.SQL("SELECT * FROM {} WHERE id = %s").format(sql.Identifier(table_name)), (data['id'],))
-
-        result = cursor.fetchone()
-
-        if result:
-            logging.info(f"Entry with ID {data['id']} already exists.")
-        else:
-            columns = data.keys()
-            values = [data[column] for column in columns]
-            insert_query = sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
-                sql.Identifier(table_name),
-                sql.SQL(', ').join(map(sql.Identifier, columns)),
-                sql.SQL(', ').join(sql.Placeholder() * len(values))
+class PostgresHandler:
+    """ A class for interacting with a PostgreSQL database. """
+    def __init__(self, database="postgres", user="postgres", password="", host='localhost', port=5432, table_name="arxiv_articles"):
+        """ Initialize the PostgresHandler object with database connection details.
+        """
+        self.database = database
+        self.user = user
+        self.host = host
+        self.port = port
+        self.table_name = table_name
+        self.conn, self.cursor = self.connect_to_postgres(password)
+        if self.conn is None or self.cursor is None:
+            raise Exception("Could not connect to the database.")
+        
+    def connect_to_postgres(self, password:str):
+        """ Connects to a PostgreSQL database and returns the connection and cursor objects.
+        """
+        try:
+            conn = psycopg2.connect(
+                host=self.host,
+                port=self.port,
+                database=self.database,
+                user=self.user,
+                password=password
             )
-            cursor.execute(insert_query, values)
-            conn.commit()
-            logging.info(f"Inserted new entry with ID {data['id']}.")
-            
-    except Exception as e:
-        logging.error(f"An error occurred: {e}")
-        conn.rollback()
+            cursor = conn.cursor()
+            logging.info("Connected to the database successfully")
+            return conn, cursor
+        except Exception as e:
+            logging.error(f"An error occurred: {e}")
+            return None, None
 
-def get_ids_not_in_database(input_ids: List[str], cursor: psycopg2.extensions.cursor, table_name: str) -> List[str]:
-    """ Retrieve IDs from the input list that are not present in the PostgreSQL database using a provided cursor.
+    def close_connection(self):
+        """ Close the database cursor and connection. """
+        if self.cursor is not None:
+            self.cursor.close()
+            logging.info("Database cursor closed.")
 
-    Args:
-        input_ids (list): List of IDs to check.
-        cursor (psycopg2.extensions.cursor): Database cursor to use for querying.
-    Returns:
-        list: List of IDs that are not in the database.
-    """
-    ids_not_in_database = []
+        if self.conn is not None:
+            self.conn.close()
+            logging.info("Database connection closed.")
 
-    try:
-        cursor.execute(f"SELECT id FROM {table_name} WHERE id = ANY(%s)", (input_ids,))
-        existing_ids = set(row[0] for row in cursor.fetchall())
-        ids_not_in_database = [id for id in input_ids if id not in existing_ids]
+    def get_ids_not_in_database(self, input_ids: List[str], batch_size:int=1000) -> List[str]:
+        """ Retrieve IDs from the input list that are not present in the PostgreSQL database.
+        Args:
+            input_ids (list): List of IDs to check.
+            batch_size (int): The size of each batch to query (default: 1000).
+        Returns:
+            list: List of IDs that are not in the database.
+        """
+        ids_not_in_database = set(input_ids)
+        try:
+            for i in range(0, len(input_ids), batch_size):
+                batch_ids = input_ids[i:i+batch_size]
+                query = sql.SQL("SELECT id FROM {} WHERE id = ANY(%s)").format(sql.Identifier(self.table_name))
+                self.cursor.execute(query, (batch_ids,))
+                existing_ids = set(row[0] for row in self.cursor.fetchall())
+                ids_not_in_database.difference_update(existing_ids)
 
-    except psycopg2.Error as e:
-        logging.error(f"Error: {e}")
+        except psycopg2.Error as e:
+            logging.error(f"Database error: {e}")
+            raise
 
-    return ids_not_in_database
-
-def retrieve_first_n_rows(n: int, cursor: psycopg2.extensions.cursor, table_name: str) -> Optional[List[Tuple]]:
-    """ Retrieve the first n rows from a PostgreSQL table using the provided cursor.
-
-    Args:
-        n (int): The number of rows to retrieve.
-        cursor (psycopg2.extensions.cursor): The cursor object for the database connection.
-        table_name (str): The name of the PostgreSQL table to retrieve rows from.
-    Returns:
-        Optional[List[Tuple]]: A list of tuples containing the retrieved rows, or None if an error occurs.
-
-    Example:
-        >>> conn, cursor = connect_to_postgres()
-        >>> data = retrieve_first_n_rows(n=5, cursor=cursor, table_name="arxiv")
-    """
-    try:   
-        query = f"SELECT id, title, summary FROM {table_name} LIMIT {n};"
-        cursor.execute(query)
-        rows = cursor.fetchall()
-        return rows
-        
-    except psycopg2.Error as e:
-        logging.error(f"Error: {e}")
-        return None
+        return list(ids_not_in_database)
     
-def retrieve_all_rows(cursor: psycopg2.extensions.cursor, table_name: str) -> Optional[List[Tuple]]:
-    """ Retrieve all rows from a PostgreSQL table using the provided cursor.
+    def select_metadata(self, metadata: dict):
+        """ Selects metadata of articles with IDs not present in the database.
+        Args:
+            metadata (dict): Dictionary containing the metadata of articles.
+        Returns:
+            dict: Dictionary containing the metadata of articles with IDs not present in the database.
+        """
+        ids = [item['id'] for item in metadata]
+        ids_selected= self.get_ids_not_in_database(ids)
+        if ids_selected:
+            logging.info(f"{len(ids_selected)} articles to be submitted: {ids_selected}")
+            metadata_selected = [item for item in metadata if item['id'] in ids_selected]
+            return metadata_selected
+        else:
+            logging.info(f"No new articles have been found.\n")
+            return None
 
-    Args:
-        cursor (psycopg2.extensions.cursor): The cursor object for the database connection.
-        table_name (str): The name of the PostgreSQL table to retrieve rows from.
-    Returns:
-        Optional[List[Tuple]]: A list of tuples containing the retrieved rows, or None if an error occurs.
+    def check_id_and_insert(self, table_name:str, data:dict):
+        """ Checks if an ID exists in the table, and if not, inserts a new row.
+        Args:
+            table_name (str): The name of the PostgreSQL table to insert the row into.
+            data (dict): A dictionary containing the data to insert.
+        Returns:
+            None
+        """
+        try:
+            # Check if the ID exists
+            self.cursor.execute(sql.SQL("SELECT * FROM {} WHERE id = %s").format(sql.Identifier(table_name)), (data['id'],))
+            result = self.cursor.fetchone()
 
-    Example:
-        >>> conn, cursor = connect_to_postgres()
-        >>> data = retrieve_all_rows(cursor=cursor, table_name="arxiv")
-    """
-    try:   
-        query = f"SELECT id, title, summary FROM {table_name};"
-        cursor.execute(query)
-        rows = cursor.fetchall()
-        return rows
-        
-    except psycopg2.Error as e:
-        logging.error(f"Error: {e}")
-        return None
+            if result:
+                logging.info(f"Entry with ID {data['id']} already exists.")
+            else:
+                columns = data.keys()
+                values = [data[column] for column in columns]
+                insert_query = sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
+                    sql.Identifier(table_name),
+                    sql.SQL(', ').join(map(sql.Identifier, columns)),
+                    sql.SQL(', ').join(sql.Placeholder() * len(values))
+                )
+                self.cursor.execute(insert_query, values)
+                self.conn.commit()
+                logging.info(f"Inserted new entry with ID {data['id']}.")
+                
+        except Exception as e:
+            logging.error(f"An error occurred: {e}")
+            self.conn.rollback()
+
+    def retrieve_rows(self, table_name: str, n: Optional[int] = None) -> Optional[List[Tuple]]:
+        """ Retrieve rows from a PostgreSQL table.
+        Args:
+            table_name (str): The name of the PostgreSQL table to retrieve rows from.
+            n (Optional[int]): The number of rows to retrieve. If None, retrieves all rows.
+        Returns:
+            Optional[List[Tuple]]: A list of tuples containing the retrieved rows, or None if an error occurs.
+        """
+        try:
+            query = sql.SQL("SELECT id, title, summary FROM {} {}").format(
+                sql.Identifier(table_name),
+                sql.SQL("LIMIT %s") if n is not None else sql.SQL("")
+            )
+            self.cursor.execute(query, (n,) if n is not None else None)
+            rows = self.cursor.fetchall()
+            logging.info(f"Retrieved {len(rows)} rows from the database.")
+            return rows
+
+        except psycopg2.Error as e:
+            logging.error(f"Error: {e}")
+            return None

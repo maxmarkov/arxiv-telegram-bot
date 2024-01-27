@@ -12,7 +12,7 @@ from bot.arxiv_api import ArxivFetcher
 from bot.post import format_post_for_telegram
 from bot.telegram_bot import send_message_to_channel
 from bot.openai import summarize_abstract, convert_text_to_embedding
-from bot.database import connect_to_postgres, check_id_and_insert, get_ids_not_in_database, retrieve_first_n_rows
+from bot.database import PostgresHandler
 
 LOG_PATH = './logs'
 os.makedirs(LOG_PATH, exist_ok=True)
@@ -50,57 +50,48 @@ def run_scheduler(scheduler_type: str) -> None:
 
 def main():
     try:
-        fetcher = ArxivFetcher(category='q-fin.PM')
-        logging.info("Fetching recent arXiv updates...")
-        response = fetcher.fetch_updates()
-        logging.info("Parsing the response...")
-        entries = fetcher.parse_arxiv_response_re(response)
+        #fetcher = ArxivFetcher(category='q-fin.PM')
+        #logging.info("Fetching recent arXiv updates...")
+        #response = fetcher.fetch_updates()
+        #logging.info("Parsing the response...")
+        #entries = fetcher.parse_arxiv_response_re(response)
 
-        #fetcher = ArxivFetcher.load_from_json('fetcher_state.json')
+        fetcher = ArxivFetcher.load_from_json('fetcher_state.json')
         metadata = fetcher.fetch_metadata()
 
-        conn, cursor = connect_to_postgres(password=os.getenv('POSTGRES_PASSWORD'),
-                                           database=os.getenv('POSTGRES_DB'),
-                                           port=os.getenv('POSTGRES_PORT'))#, host='host.docker.internal')
-
-        if conn is None or cursor is None:
-            raise Exception("Could not connect to the database.")
+        db = PostgresHandler(database=os.getenv('POSTGRES_DB'),
+                            user=os.getenv('POSTGRES_USERNAME'),
+                            password=os.getenv('POSTGRES_PASSWORD'),
+                            host=os.getenv('POSTGRES_HOST'),
+                            port=os.getenv('POSTGRES_PORT'),
+                            table_name=os.getenv('POSTGRES_TABLE'))
         
         # ## === embedding === ##
-        # records = retrieve_first_n_rows(n=2, cursor=cursor, table_name=os.getenv('POSTGRES_TABLE'))
+        # records = db.retrieve_rows(os.getenv('POSTGRES_TABLE'), n=2)
         # summary = records[0][2].replace("\n", " ")
         # embedding = convert_text_to_embedding(summary, os.getenv('OPENAI_TOKEN'))
         # ## === end of embedding === ##
 
-        ids_not_in_database = get_ids_not_in_database(fetcher.ids, cursor, os.getenv('POSTGRES_TABLE'))
+        metadata_selected = db.select_metadata(metadata)
 
-        if len(ids_not_in_database) > 0:
+        if metadata_selected:
 
-            logging.info(f"{len(ids_not_in_database)} articles to be submitted: {ids_not_in_database}")
+            for item in enumerate(metadata_selected):
+                print(item['id'])
+                  
+                logging.info(f"Inserting {item['id']} into the database...")
+                db.check_id_and_insert(os.getenv('POSTGRES_TABLE'), item)
+                logging.info("Data inserted successfully.\n")
 
-            for i, item in enumerate(metadata):
-                print(metadata[i]['id'])
+                ai_summary = summarize_abstract(item['summary'], os.getenv('OPENAI_TOKEN'))
+                item['ai summary'] = ai_summary
 
-                if fetcher.ids[i] in ids_not_in_database:
-                    
-                    logging.info(metadata[i])
-                    logging.info(f"Inserting {fetcher.ids[i]} into the database...")
-                    check_id_and_insert(cursor, conn, os.getenv('POSTGRES_TABLE'), metadata[i])
-                    logging.info("Data inserted successfully.\n")
+                message = format_post_for_telegram(item)
 
-                    ai_summary = summarize_abstract(item['summary'], os.getenv('OPENAI_TOKEN'))
-                    item['ai summary'] = ai_summary
+                asyncio.run(send_message_to_channel(os.getenv('BOT_TOKEN'), os.getenv('CHANNEL_ID'), message))
+                time.sleep(5)
 
-                    message = format_post_for_telegram(item)
-
-                    asyncio.run(send_message_to_channel(os.getenv('BOT_TOKEN'), os.getenv('CHANNEL_ID'), message))
-                    time.sleep(5)
-        
-        else:
-            logging.info(f"No new articles have been found.\n")
-
-        cursor.close()
-        conn.close()
+        db.close_connection()
 
     except Exception as e:
         logging.error(f"An error occurred: {str(e)}")
