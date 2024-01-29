@@ -1,3 +1,4 @@
+import os
 import logging
 import psycopg2
 from psycopg2 import sql
@@ -12,25 +13,36 @@ class PostgresHandler:
     def __init__(self, database="postgres", user="postgres", password="", host='localhost', port=5432, table_name="arxiv_articles"):
         """ Initialize the PostgresHandler object with database connection details.
         """
-        self.database = database
-        self.user = user
-        self.host = host
-        self.port = port
-        self.table_name = table_name
-        self.conn, self.cursor = self.connect_to_postgres(password)
+        if not self.check_env_variables():
+            logging.error("Missing required environment variables.")
+            raise EnvironmentError("Missing required environment variables.")
+ 
+        self.conn, self.cursor = self.connect_to_postgres()
         if self.conn is None or self.cursor is None:
             raise Exception("Could not connect to the database.")
-        
-    def connect_to_postgres(self, password:str):
+
+    def check_env_variables(self):
+        """ Checks if required environment variables are set. """
+        required_env_vars = ['POSTGRES_DB', 'POSTGRES_USERNAME', 'POSTGRES_PASSWORD', 'POSTGRES_HOST', 'POSTGRES_PORT', 'POSTGRES_TABLE']
+        all_vars_present = True
+
+        for var in required_env_vars:
+            if not os.getenv(var):
+                logging.error(f"Environment variable {var} is not set.")
+                all_vars_present = False
+
+        return all_vars_present
+
+    def connect_to_postgres(self):
         """ Connects to a PostgreSQL database and returns the connection and cursor objects.
         """
         try:
             conn = psycopg2.connect(
-                host=self.host,
-                port=self.port,
-                database=self.database,
-                user=self.user,
-                password=password
+                host=os.getenv('POSTGRES_HOST'),
+                port=os.getenv('POSTGRES_PORT'),
+                database=os.getenv('POSTGRES_DB'),
+                user=os.getenv('POSTGRES_USERNAME'),
+                password=os.getenv('POSTGRES_PASSWORD')
             )
             cursor = conn.cursor()
             logging.info("Connected to the database successfully")
@@ -61,7 +73,7 @@ class PostgresHandler:
         try:
             for i in range(0, len(input_ids), batch_size):
                 batch_ids = input_ids[i:i+batch_size]
-                query = sql.SQL("SELECT id FROM {} WHERE id = ANY(%s)").format(sql.Identifier(self.table_name))
+                query = sql.SQL("SELECT id FROM {} WHERE id = ANY(%s)").format(sql.Identifier(os.getenv('POSTGRES_TABLE')))
                 self.cursor.execute(query, (batch_ids,))
                 existing_ids = set(row[0] for row in self.cursor.fetchall())
                 ids_not_in_database.difference_update(existing_ids)
@@ -89,17 +101,16 @@ class PostgresHandler:
             logging.info(f"No new articles have been found.\n")
             return None
 
-    def check_id_and_insert(self, table_name:str, data:dict):
+    def check_id_and_insert(self, data:dict):
         """ Checks if an ID exists in the table, and if not, inserts a new row.
         Args:
-            table_name (str): The name of the PostgreSQL table to insert the row into.
             data (dict): A dictionary containing the data to insert.
         Returns:
             None
         """
         try:
             # Check if the ID exists
-            self.cursor.execute(sql.SQL("SELECT * FROM {} WHERE id = %s").format(sql.Identifier(table_name)), (data['id'],))
+            self.cursor.execute(sql.SQL("SELECT * FROM {} WHERE id = %s").format(sql.Identifier(os.getenv('POSTGRES_TABLE'))), (data['id'],))
             result = self.cursor.fetchone()
 
             if result:
@@ -108,7 +119,7 @@ class PostgresHandler:
                 columns = data.keys()
                 values = [data[column] for column in columns]
                 insert_query = sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
-                    sql.Identifier(table_name),
+                    sql.Identifier(os.getenv('POSTGRES_TABLE')),
                     sql.SQL(', ').join(map(sql.Identifier, columns)),
                     sql.SQL(', ').join(sql.Placeholder() * len(values))
                 )
@@ -120,17 +131,16 @@ class PostgresHandler:
             logging.error(f"An error occurred: {e}")
             self.conn.rollback()
 
-    def retrieve_rows(self, table_name: str, n: Optional[int] = None) -> Optional[List[Tuple]]:
+    def retrieve_rows(self, n: Optional[int] = None) -> Optional[List[Tuple]]:
         """ Retrieve rows from a PostgreSQL table.
         Args:
-            table_name (str): The name of the PostgreSQL table to retrieve rows from.
             n (Optional[int]): The number of rows to retrieve. If None, retrieves all rows.
         Returns:
             Optional[List[Tuple]]: A list of tuples containing the retrieved rows, or None if an error occurs.
         """
         try:
             query = sql.SQL("SELECT id, title, summary FROM {} {}").format(
-                sql.Identifier(table_name),
+                sql.Identifier(os.getenv('POSTGRES_TABLE')),
                 sql.SQL("LIMIT %s") if n is not None else sql.SQL("")
             )
             self.cursor.execute(query, (n,) if n is not None else None)

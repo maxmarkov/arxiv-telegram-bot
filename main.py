@@ -1,7 +1,5 @@
 import os
-import sys
 import time
-import asyncio
 import logging 
 import argparse
 
@@ -10,8 +8,6 @@ from apscheduler.schedulers.background import BlockingScheduler, BackgroundSched
 
 from bot.arxiv_api import ArxivFetcher
 from bot.post import TelegramPost
-from bot.telegram_bot import send_message_to_channel
-from bot.openai import summarize_abstract, convert_text_to_embedding
 from bot.database import PostgresHandler
 
 LOG_PATH = './logs'
@@ -56,15 +52,10 @@ def main():
         logging.info("Parsing the response...")
         entries = fetcher.parse_arxiv_response_re(response)
 
-        #fetcher = ArxivFetcher.load_from_json('fetcher_state.json')
+        fetcher = ArxivFetcher.load_from_json('fetcher_state.json')
         metadata = fetcher.fetch_metadata()
 
-        db = PostgresHandler(database=os.getenv('POSTGRES_DB'),
-                            user=os.getenv('POSTGRES_USERNAME'),
-                            password=os.getenv('POSTGRES_PASSWORD'),
-                            host=os.getenv('POSTGRES_HOST'),
-                            port=os.getenv('POSTGRES_PORT'),
-                            table_name=os.getenv('POSTGRES_TABLE'))
+        db = PostgresHandler()
         
         # ## === embedding === ##
         # records = db.retrieve_rows(os.getenv('POSTGRES_TABLE'), n=2)
@@ -79,7 +70,7 @@ def main():
             for item in metadata_selected:
                   
                 logging.info(f"Inserting {item['id']} into the database...")
-                db.check_id_and_insert(os.getenv('POSTGRES_TABLE'), item)
+                db.check_id_and_insert(item)
                 logging.info("Data inserted successfully.\n")
 
                 telegram_post = TelegramPost(item)
