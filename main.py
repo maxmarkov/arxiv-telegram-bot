@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from apscheduler.schedulers.background import BlockingScheduler, BackgroundScheduler
 
 from bot.arxiv_api import ArxivFetcher
-from bot.post import format_post_for_telegram
+from bot.post import TelegramPost
 from bot.telegram_bot import send_message_to_channel
 from bot.openai import summarize_abstract, convert_text_to_embedding
 from bot.database import PostgresHandler
@@ -50,13 +50,13 @@ def run_scheduler(scheduler_type: str) -> None:
 
 def main():
     try:
-        #fetcher = ArxivFetcher(category='q-fin.PM')
-        #logging.info("Fetching recent arXiv updates...")
-        #response = fetcher.fetch_updates()
-        #logging.info("Parsing the response...")
-        #entries = fetcher.parse_arxiv_response_re(response)
+        fetcher = ArxivFetcher(category='q-fin.PM')
+        logging.info("Fetching recent arXiv updates...")
+        response = fetcher.fetch_updates()
+        logging.info("Parsing the response...")
+        entries = fetcher.parse_arxiv_response_re(response)
 
-        fetcher = ArxivFetcher.load_from_json('fetcher_state.json')
+        #fetcher = ArxivFetcher.load_from_json('fetcher_state.json')
         metadata = fetcher.fetch_metadata()
 
         db = PostgresHandler(database=os.getenv('POSTGRES_DB'),
@@ -76,19 +76,14 @@ def main():
 
         if metadata_selected:
 
-            for item in enumerate(metadata_selected):
-                print(item['id'])
+            for item in metadata_selected:
                   
                 logging.info(f"Inserting {item['id']} into the database...")
                 db.check_id_and_insert(os.getenv('POSTGRES_TABLE'), item)
                 logging.info("Data inserted successfully.\n")
 
-                ai_summary = summarize_abstract(item['summary'], os.getenv('OPENAI_TOKEN'))
-                item['ai summary'] = ai_summary
-
-                message = format_post_for_telegram(item)
-
-                asyncio.run(send_message_to_channel(os.getenv('BOT_TOKEN'), os.getenv('CHANNEL_ID'), message))
+                telegram_post = TelegramPost(item)
+                telegram_post.post_to_channel()
                 time.sleep(5)
 
         db.close_connection()
